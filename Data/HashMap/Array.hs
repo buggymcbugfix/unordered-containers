@@ -75,13 +75,15 @@ import Prelude hiding (filter, foldr, foldl, length, map, read)
 import GHC.Exts (SmallArray#, newSmallArray#, readSmallArray#, writeSmallArray#,
                  indexSmallArray#, unsafeFreezeSmallArray#, unsafeThawSmallArray#,
                  SmallMutableArray#, sizeofSmallArray#, copySmallArray#, thawSmallArray#,
-                 sizeofSmallMutableArray#, copySmallMutableArray#, cloneSmallMutableArray#)
+                 sizeofSmallMutableArray#, copySmallMutableArray#, cloneSmallMutableArray#,
+                 smallArrayOf2#)
 
 #else
 import GHC.Exts (Array#, newArray#, readArray#, writeArray#,
                  indexArray#, unsafeFreezeArray#, unsafeThawArray#,
                  MutableArray#, sizeofArray#, copyArray#, thawArray#,
-                 sizeofMutableArray#, copyMutableArray#, cloneMutableArray#)
+                 sizeofMutableArray#, copyMutableArray#, cloneMutableArray#,
+                 arrayOf2#)
 import Data.Monoid (Monoid (..))
 #endif
 
@@ -156,6 +158,9 @@ copyMutableArray# :: SmallMutableArray# d a
                   -> State# d
                   -> State# d
 copyMutableArray# = copySmallMutableArray#
+
+arrayOf2# :: a -> a -> SmallArray# a
+arrayOf2# = smallArrayOf2#
 #endif
 
 ------------------------------------------------------------------------
@@ -268,10 +273,7 @@ singletonM x = new 1 x >>= unsafeFreeze
 {-# INLINE singletonM #-}
 
 pair :: a -> a -> Array a
-pair x y = run $ do
-    ary <- new 2 x
-    write ary 1 y
-    return ary
+pair x y = Array (arrayOf2# x y)
 {-# INLINE pair #-}
 
 read :: MArray s a -> Int -> ST s a
