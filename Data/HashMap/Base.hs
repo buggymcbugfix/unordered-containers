@@ -738,11 +738,7 @@ infixl 9 !
 
 -- | Create a 'Collision' value with two 'Leaf' values.
 collision :: Hash -> Leaf k v -> Leaf k v -> HashMap k v
-collision h !e1 !e2 =
-    let v = A.run $ do mary <- A.new 2 e1
-                       A.write mary 1 e2
-                       return mary
-    in Collision h v
+collision h !e1 !e2 = Collision h (A.pair e1 e2)
 {-# INLINE collision #-}
 
 -- | Create a 'BitmapIndexed' or 'Full' node.
@@ -934,15 +930,17 @@ two = go
             ary <- A.singletonM st
             return $ BitmapIndexed bp1 ary
         | otherwise  = do
-            mary <- A.new 2 $! Leaf h1 (L k1 v1)
-            A.write mary idx2 t2
-            ary <- A.unsafeFreeze mary
-            return $ BitmapIndexed (bp1 .|. bp2) ary
+            let !leaf = Leaf h1 (L k1 v1)
+            if index h1 s < index h2 s
+              then do
+                let !ary = A.pair leaf t2
+                return $ BitmapIndexed (bp1 .|. bp2) ary
+              else do
+                let !ary = A.pair t2 leaf
+                return $ BitmapIndexed (bp1 .|. bp2) ary
       where
         bp1  = mask h1 s
         bp2  = mask h2 s
-        idx2 | index h1 s < index h2 s = 1
-             | otherwise               = 0
 {-# INLINE two #-}
 
 -- | /O(log n)/ Associate the value with the key in this map.  If
