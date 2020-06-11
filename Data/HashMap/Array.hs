@@ -1,4 +1,5 @@
-{-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples, ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples, ScopedTypeVariables,
+             PatternGuards #-}
 {-# OPTIONS_GHC -fno-full-laziness -funbox-strict-fields #-}
 
 -- | Zero based arrays.
@@ -12,7 +13,6 @@ module Data.HashMap.Array
     , new
     , new_
     , singleton
-    , singletonM
     , pair
 
       -- * Basic interface
@@ -72,11 +72,11 @@ import Prelude hiding (filter, foldr, foldl, length, map, read)
 #endif
 
 #if __GLASGOW_HASKELL__ >= 710
-import GHC.Exts (SmallArray#, newSmallArray#, readSmallArray#, writeSmallArray#,
+import GHC.Exts (TYPE, SmallArray#, newSmallArray#, readSmallArray#, writeSmallArray#,
                  indexSmallArray#, unsafeFreezeSmallArray#, unsafeThawSmallArray#,
                  SmallMutableArray#, sizeofSmallArray#, copySmallArray#, thawSmallArray#,
                  sizeofSmallMutableArray#, copySmallMutableArray#, cloneSmallMutableArray#,
-                 smallArrayOf2#)
+                 smallArrayOf1#, smallArrayOf2#)
 
 #else
 import GHC.Exts (Array#, newArray#, readArray#, writeArray#,
@@ -265,12 +265,8 @@ new_ :: Int -> ST s (MArray s a)
 new_ n = new n undefinedElem
 
 singleton :: a -> Array a
-singleton x = runST (singletonM x)
+singleton x = Array (smallArrayOf1# x)
 {-# INLINE singleton #-}
-
-singletonM :: a -> ST s (Array a)
-singletonM x = new 1 x >>= unsafeFreeze
-{-# INLINE singletonM #-}
 
 pair :: a -> a -> Array a
 pair x y = Array (arrayOf2# x y)
