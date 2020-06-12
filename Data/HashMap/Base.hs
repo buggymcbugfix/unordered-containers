@@ -890,7 +890,7 @@ unsafeInsert k0 v0 m0 = runST (go h0 k0 v0 0 m0)
                          then return t
                          else return $! Leaf h (L k x)
                     else return $! collision h l (L k x)
-        | otherwise = return $! two s h k x hy t
+        | otherwise = return $ two s h k x hy t
     go h k x s t@(BitmapIndexed b ary)
         | b .&. m == 0 = do
             ary' <- A.insertM ary i $! Leaf h (L k x)
@@ -1033,7 +1033,7 @@ unsafeInsertWith f k0 v0 m0 = runST (go h0 k0 v0 0 m0)
         | hy == h = if ky == k
                     then return $! Leaf h (L k (f x y))
                     else return $! collision h l (L k x)
-        | otherwise = return $! two s h k x hy t
+        | otherwise = return $ two s h k x hy t
     go h k x s t@(BitmapIndexed b ary)
         | b .&. m == 0 = do
             ary' <- A.insertM ary i $! Leaf h (L k x)
