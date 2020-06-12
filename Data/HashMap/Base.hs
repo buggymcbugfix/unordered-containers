@@ -926,11 +926,10 @@ two = go
   where
     go s h1 k1 v1 h2 t2
         | bp1 == bp2 =
-            let !ary = A.singleton $! go (s + bitsPerSubkey) h1 k1 v1 h2 t2
-            in BitmapIndexed bp1 ary
+            BitmapIndexed bp1 (A.singleton (go (s + bitsPerSubkey) h1 k1 v1 h2 t2))
         | otherwise =
-            let !leaf = Leaf h1 (L k1 v1)
-                !ary
+            let leaf = Leaf h1 (L k1 v1)
+                ary
                   | index h1 s < index h2 s = A.pair leaf t2
                   | otherwise               = A.pair t2 leaf
             in BitmapIndexed (bp1 .|. bp2) ary
