@@ -72,18 +72,16 @@ import Prelude hiding (filter, foldr, foldl, length, map, read)
 #endif
 
 #if __GLASGOW_HASKELL__ >= 710
-import GHC.Exts (TYPE, SmallArray#, newSmallArray#, readSmallArray#, writeSmallArray#,
+import GHC.Exts (SmallArray#, newSmallArray#, readSmallArray#, writeSmallArray#,
                  indexSmallArray#, unsafeFreezeSmallArray#, unsafeThawSmallArray#,
                  SmallMutableArray#, sizeofSmallArray#, copySmallArray#, thawSmallArray#,
-                 sizeofSmallMutableArray#, copySmallMutableArray#, cloneSmallMutableArray#,
-                 smallArrayOf1#, smallArrayOf2#)
+                 sizeofSmallMutableArray#, copySmallMutableArray#, cloneSmallMutableArray#)
 
 #else
 import GHC.Exts (Array#, newArray#, readArray#, writeArray#,
                  indexArray#, unsafeFreezeArray#, unsafeThawArray#,
                  MutableArray#, sizeofArray#, copyArray#, thawArray#,
-                 sizeofMutableArray#, copyMutableArray#, cloneMutableArray#,
-                 arrayOf2#)
+                 sizeofMutableArray#, copyMutableArray#, cloneMutableArray#)
 import Data.Monoid (Monoid (..))
 #endif
 
@@ -94,6 +92,7 @@ import qualified Prelude
 import Data.HashMap.Unsafe (runST)
 import Control.Monad ((>=>))
 
+import GHC.Exts (smallArrayOf#)
 
 #if __GLASGOW_HASKELL__ >= 710
 type Array# a = SmallArray# a
@@ -158,9 +157,6 @@ copyMutableArray# :: SmallMutableArray# d a
                   -> State# d
                   -> State# d
 copyMutableArray# = copySmallMutableArray#
-
-arrayOf2# :: a -> a -> SmallArray# a
-arrayOf2# = smallArrayOf2#
 #endif
 
 ------------------------------------------------------------------------
@@ -265,11 +261,11 @@ new_ :: Int -> ST s (MArray s a)
 new_ n = new n undefinedElem
 
 singleton :: a -> Array a
-singleton x = Array (smallArrayOf1# x)
+singleton x = Array (smallArrayOf# x)
 {-# INLINE singleton #-}
 
 pair :: a -> a -> Array a
-pair x y = Array (arrayOf2# x y)
+pair x y = Array (smallArrayOf# (# x, y #))
 {-# INLINE pair #-}
 
 read :: MArray s a -> Int -> ST s a
