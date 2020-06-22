@@ -1,4 +1,5 @@
-{-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples, ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples, ScopedTypeVariables,
+             PatternGuards #-}
 {-# OPTIONS_GHC -fno-full-laziness -funbox-strict-fields #-}
 
 -- | Zero based arrays.
@@ -12,7 +13,6 @@ module Data.HashMap.Array
     , new
     , new_
     , singleton
-    , singletonM
     , pair
 
       -- * Basic interface
@@ -92,6 +92,7 @@ import qualified Prelude
 import Data.HashMap.Unsafe (runST)
 import Control.Monad ((>=>))
 
+import GHC.Exts (smallArrayOf#)
 
 #if __GLASGOW_HASKELL__ >= 710
 type Array# a = SmallArray# a
@@ -260,18 +261,11 @@ new_ :: Int -> ST s (MArray s a)
 new_ n = new n undefinedElem
 
 singleton :: a -> Array a
-singleton x = runST (singletonM x)
+singleton x = Array (smallArrayOf# x)
 {-# INLINE singleton #-}
 
-singletonM :: a -> ST s (Array a)
-singletonM x = new 1 x >>= unsafeFreeze
-{-# INLINE singletonM #-}
-
 pair :: a -> a -> Array a
-pair x y = run $ do
-    ary <- new 2 x
-    write ary 1 y
-    return ary
+pair x y = Array (smallArrayOf# (# x, y #))
 {-# INLINE pair #-}
 
 read :: MArray s a -> Int -> ST s a

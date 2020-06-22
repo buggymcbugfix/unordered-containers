@@ -738,11 +738,7 @@ infixl 9 !
 
 -- | Create a 'Collision' value with two 'Leaf' values.
 collision :: Hash -> Leaf k v -> Leaf k v -> HashMap k v
-collision h !e1 !e2 =
-    let v = A.run $ do mary <- A.new 2 e1
-                       A.write mary 1 e2
-                       return mary
-    in Collision h v
+collision h !e1 !e2 = Collision h (A.pair e1 e2)
 {-# INLINE collision #-}
 
 -- | Create a 'BitmapIndexed' or 'Full' node.
@@ -769,7 +765,7 @@ insert' h0 k0 v0 m0 = go h0 k0 v0 0 m0
                          then t
                          else Leaf h (L k x)
                     else collision h l (L k x)
-        | otherwise = runST (two s h k x hy t)
+        | otherwise = two s h k x hy t
     go h k x s t@(BitmapIndexed b ary)
         | b .&. m == 0 =
             let !ary' = A.insert ary i $! Leaf h (L k x)
@@ -807,7 +803,7 @@ insertNewKey !h0 !k0 x0 !m0 = go h0 k0 x0 0 m0
     go !h !k x !_ Empty = Leaf h (L k x)
     go h k x s t@(Leaf hy l)
       | hy == h = collision h l (L k x)
-      | otherwise = runST (two s h k x hy t)
+      | otherwise = two s h k x hy t
     go h k x s (BitmapIndexed b ary)
         | b .&. m == 0 =
             let !ary' = A.insert ary i $! Leaf h (L k x)
@@ -894,7 +890,7 @@ unsafeInsert k0 v0 m0 = runST (go h0 k0 v0 0 m0)
                          then return t
                          else return $! Leaf h (L k x)
                     else return $! collision h l (L k x)
-        | otherwise = two s h k x hy t
+        | otherwise = return $ two s h k x hy t
     go h k x s t@(BitmapIndexed b ary)
         | b .&. m == 0 = do
             ary' <- A.insertM ary i $! Leaf h (L k x)
@@ -925,24 +921,21 @@ unsafeInsert k0 v0 m0 = runST (go h0 k0 v0 0 m0)
 -- key. See issue #232. We don't need to force the HashMap argument
 -- because it's already in WHNF (having just been matched) and we
 -- just put it directly in an array.
-two :: Shift -> Hash -> k -> v -> Hash -> HashMap k v -> ST s (HashMap k v)
+two :: Shift -> Hash -> k -> v -> Hash -> HashMap k v -> HashMap k v
 two = go
   where
     go s h1 k1 v1 h2 t2
-        | bp1 == bp2 = do
-            st <- go (s+bitsPerSubkey) h1 k1 v1 h2 t2
-            ary <- A.singletonM st
-            return $ BitmapIndexed bp1 ary
-        | otherwise  = do
-            mary <- A.new 2 $! Leaf h1 (L k1 v1)
-            A.write mary idx2 t2
-            ary <- A.unsafeFreeze mary
-            return $ BitmapIndexed (bp1 .|. bp2) ary
+        | bp1 == bp2 =
+            BitmapIndexed bp1 (A.singleton (go (s + bitsPerSubkey) h1 k1 v1 h2 t2))
+        | otherwise =
+            let leaf = Leaf h1 (L k1 v1)
+                ary
+                  | index h1 s < index h2 s = A.pair leaf t2
+                  | otherwise               = A.pair t2 leaf
+            in BitmapIndexed (bp1 .|. bp2) ary
       where
-        bp1  = mask h1 s
-        bp2  = mask h2 s
-        idx2 | index h1 s < index h2 s = 1
-             | otherwise               = 0
+        bp1 = mask h1 s
+        bp2 = mask h2 s
 {-# INLINE two #-}
 
 -- | /O(log n)/ Associate the value with the key in this map.  If
@@ -976,7 +969,7 @@ insertModifying x f k0 m0 = go h0 k0 0 m0
                       (# v' #) | ptrEq y v' -> t
                                | otherwise -> Leaf h (L k (v'))
                     else collision h l (L k x)
-        | otherwise = runST (two s h k x hy t)
+        | otherwise = two s h k x hy t
     go h k s t@(BitmapIndexed b ary)
         | b .&. m == 0 =
             let ary' = A.insert ary i $! Leaf h (L k x)
@@ -1040,7 +1033,7 @@ unsafeInsertWith f k0 v0 m0 = runST (go h0 k0 v0 0 m0)
         | hy == h = if ky == k
                     then return $! Leaf h (L k (f x y))
                     else return $! collision h l (L k x)
-        | otherwise = two s h k x hy t
+        | otherwise = return $ two s h k x hy t
     go h k x s t@(BitmapIndexed b ary)
         | b .&. m == 0 = do
             ary' <- A.insertM ary i $! Leaf h (L k x)
