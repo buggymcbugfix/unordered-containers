@@ -418,7 +418,7 @@ instance Ord k => Ord1 (HashMap k) where
 #endif
 
 -- | The ordering is total and consistent with the `Eq` instance. However,
--- nothing else about the ordering is specified, and it may change from 
+-- nothing else about the ordering is specified, and it may change from
 -- version to version of either this package or of hashable.
 instance (Ord k, Ord v) => Ord (HashMap k v) where
     compare = cmp compare compare
@@ -916,7 +916,11 @@ unsafeInsert k0 v0 m0 = runST (go h0 k0 v0 0 m0)
         | otherwise = two s h k x hy t
     go h k x s t@(BitmapIndexed b ary)
         | b .&. m == 0 = do
+#if __GLASGOW_HASKELL__ >= 811
+            let ary' = A.insert ary i $! Leaf h (L k x)
+#else
             ary' <- A.insertM ary i $! Leaf h (L k x)
+#endif
             return $! bitmapIndexedOrFull (b .|. m) ary'
         | otherwise = do
             st <- A.indexM ary i
@@ -1068,7 +1072,11 @@ unsafeInsertWithKey f k0 v0 m0 = runST (go h0 k0 v0 0 m0)
         | otherwise = two s h k x hy t
     go h k x s t@(BitmapIndexed b ary)
         | b .&. m == 0 = do
+#if __GLASGOW_HASKELL__ >= 811
+            let ary' = A.insert ary i $! Leaf h (L k x)
+#else
             ary' <- A.insertM ary i $! Leaf h (L k x)
+#endif
             return $! bitmapIndexedOrFull (b .|. m) ary'
         | otherwise = do
             st <- A.indexM ary i
@@ -2150,12 +2158,17 @@ updateOrSnocWithKey :: Eq k => (k -> v -> v -> (# v #)) -> k -> v -> A.Array (Le
 updateOrSnocWithKey f k0 v0 ary0 = go k0 v0 ary0 0 (A.length ary0)
   where
     go !k v !ary !i !n
-        | i >= n = A.run $ do
+        | i >= n =
+#if __GLASGOW_HASKELL__ >= 811
+          A.insert ary n (L k v)
+#else
+          A.run $ do
             -- Not found, append to the end.
             mary <- A.new_ (n + 1)
             A.copy ary 0 mary 0 n
             A.write mary n (L k v)
             return mary
+#endif
         | L kx y <- A.index ary i
         , k == kx
         , (# v2 #) <- f k v y
@@ -2211,7 +2224,11 @@ subsetArray cmpV ary1 ary2 = A.length ary1 <= A.length ary2 && A.all inAry2 ary1
 
 -- | /O(n)/ Update the element at the given position in this array.
 update16 :: A.Array e -> Int -> e -> A.Array e
+#if __GLASGOW_HASKELL__ >= 811
+update16 = A.update
+#else
 update16 ary idx b = runST (update16M ary idx b)
+#endif
 {-# INLINE update16 #-}
 
 -- | /O(n)/ Update the element at the given position in this array.

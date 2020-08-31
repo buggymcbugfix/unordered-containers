@@ -225,7 +225,11 @@ unsafeInsertWithKey f k0 v0 m0 = runST (go h0 k0 v0 0 m0)
         | otherwise = x `seq` two s h k x hy t
     go h k x s t@(BitmapIndexed b ary)
         | b .&. m == 0 = do
+#if __GLASGOW_HASKELL__ >= 811
+            let ary' = A.insert ary i $! leaf h k x
+#else
             ary' <- A.insertM ary i $! leaf h k x
+#endif
             return $! bitmapIndexedOrFull (b .|. m) ary'
         | otherwise = do
             st <- A.indexM ary i

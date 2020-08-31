@@ -86,6 +86,9 @@ import Prelude hiding (filter, foldMap, foldr, foldl, length, map, read, travers
 import Prelude hiding (filter, foldr, foldl, length, map, read, all)
 #endif
 
+#if __GLASGOW_HASKELL__ >= 811
+import GHC.Exts (deleteSmallArray#, insertSmallArray#, updateSmallArray#)
+#endif
 #if __GLASGOW_HASKELL__ >= 710
 import GHC.Exts (SmallArray#, newSmallArray#, readSmallArray#, writeSmallArray#,
                  indexSmallArray#, unsafeFreezeSmallArray#, unsafeThawSmallArray#,
@@ -360,7 +363,11 @@ trim mary n = cloneM mary 0 n >>= unsafeFreeze
 -- | /O(n)/ Insert an element at the given position in this array,
 -- increasing its size by one.
 insert :: Array e -> Int -> e -> Array e
+#if __GLASGOW_HASKELL__ >= 811
+insert (Array a#) (I# i#) b = Array (insertSmallArray# a# i# b)
+#else
 insert ary idx b = runST (insertM ary idx b)
+#endif
 {-# INLINE insert #-}
 
 -- | /O(n)/ Insert an element at the given position in this array,
@@ -378,6 +385,10 @@ insertM ary idx b =
 
 -- | /O(n)/ Update the element at the given position in this array.
 update :: Array e -> Int -> e -> Array e
+#if __GLASGOW_HASKELL__ >= 811
+update (Array a#) (I# i#) b = Array (updateSmallArray# a# i# b)
+{-# INLINE update #-}
+#else
 update ary idx b = runST (updateM ary idx b)
 {-# INLINE update #-}
 
@@ -390,6 +401,7 @@ updateM ary idx b =
            unsafeFreeze mary
   where !count = length ary
 {-# INLINE updateM #-}
+#endif
 
 -- | /O(n)/ Update the element at the given positio in this array, by
 -- applying a function to it.  Evaluates the element to WHNF before
@@ -482,6 +494,10 @@ thaw !ary !_o@(I# o#) (I# n#) =
 -- | /O(n)/ Delete an element at the given position in this array,
 -- decreasing its size by one.
 delete :: Array e -> Int -> Array e
+#if __GLASGOW_HASKELL__ >= 811
+delete (Array a#) (I# i#) = Array (deleteSmallArray# a# i#)
+{-# INLINE delete #-}
+#else
 delete ary idx = runST (deleteM ary idx)
 {-# INLINE delete #-}
 
@@ -496,6 +512,7 @@ deleteM ary idx = do
            unsafeFreeze mary
   where !count = length ary
 {-# INLINE deleteM #-}
+#endif
 
 map :: (a -> b) -> Array a -> Array b
 map f = \ ary ->
